@@ -5,5 +5,5 @@
 globalThis.HotelSelectors = location.hostname.endsWith('booking.com') ? {
   name:['[data-testid="title"]','h2.pp-header__title','h1'],
   price:['.hprt-table .prco-valign-middle-helper','.hprt-price-block .bui-price-display__value','[data-testid="price-and-discounted-price"]','[data-testid="price-and-discounted-price"] span','.bui-price-display__value'],
-  checkin:['[data-testid="date-display-field-start"]'],checkout:['[data-testid="date-display-field-end"]']
-} : {name:['h1'],price:['[data-selenium="display-price"]'],checkin:[],checkout:[]};
+  currency:['[data-testid="header-currency-picker-trigger"]'],checkin:['[data-testid="date-display-field-start"]'],checkout:['[data-testid="date-display-field-end"]']
+} : {name:['h1'],price:['[data-selenium="display-price"]'],currency:[],checkin:[],checkout:[]};

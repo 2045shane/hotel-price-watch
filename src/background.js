@@ -1,6 +1,6 @@
 importScripts('lib/license.js','lib/quota.js','lib/price.js');
 const H=HotelWatch, quota=H.createQuotaStore(chrome.storage.local,H.verifyLicense);
-const allowed = url => {try {const u=new URL(url);return u.protocol==='https:' && ['booking.com','agoda.com'].some(h=>u.hostname===h||u.hostname.endsWith('.'+h));}catch{return false;}};
+const allowed = url => {try {const u=new URL(url);return u.protocol==='https:' && (u.hostname==='booking.com'||u.hostname.endsWith('.booking.com'));}catch{return false;}};
 async function tracks(){return (await chrome.storage.local.get('tracks')).tracks || [];}
 async function readTab(url) {
  if(!allowed(url))throw Error('链接不受支持');

@@ -20,10 +20,10 @@ test('配额每日计次、并发上限、跨天重置、license 绕过',async()
  assert.equal(readQuota({date:localDateKey(now),count:-1},now).remaining,3);
 });
 test('MV3 manifest 文件引用及最小权限',()=>{
- const root=path.resolve(__dirname,'..'),m=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));assert.equal(m.manifest_version,3);assert.deepEqual(m.permissions,['storage']);assert.deepEqual(m.host_permissions,['https://*.booking.com/*','https://*.agoda.com/*']);
+ const root=path.resolve(__dirname,'..'),m=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));assert.equal(m.manifest_version,3);assert.deepEqual(m.permissions,['storage']);assert.deepEqual(m.host_permissions,['https://*.booking.com/*']);
  const files=[m.background.service_worker,m.action.default_popup,...Object.values(m.icons),...m.content_scripts.flatMap(c=>c.js)];for(const f of files)assert.ok(fs.existsSync(path.join(root,f)),f);
  for(const [size,f] of Object.entries(m.icons)){const b=fs.readFileSync(path.join(root,f));assert.equal(b.subarray(1,4).toString(),'PNG');assert.equal(b.readUInt32BE(16),Number(size));assert.equal(b.readUInt32BE(20),Number(size));}
- assert.ok(m.content_scripts[0].matches.includes('https://*.booking.com/hotel/*'));
+ assert.deepEqual(m.content_scripts[0].matches,['https://*.booking.com/hotel/*']);
  const html=fs.readFileSync(path.join(root,m.action.default_popup),'utf8');for(const [,f] of html.matchAll(/(?:src|href)="([^"]+)"/g))assert.ok(fs.existsSync(path.join(root,'src/popup',f)));
 });
 

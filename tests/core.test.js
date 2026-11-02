@@ -20,9 +20,27 @@ test('配额每日计次、并发上限、跨天重置、license 绕过',async()
  assert.equal(readQuota({date:localDateKey(now),count:-1},now).remaining,3);
 });
 test('MV3 manifest 文件引用及最小权限',()=>{
- const root=path.resolve(__dirname,'..'),m=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));assert.equal(m.manifest_version,3);assert.deepEqual(m.permissions,['storage']);assert.deepEqual(m.host_permissions,['https://*.booking.com/*','https://*.agoda.com/*']);
+ const root=path.resolve(__dirname,'..'),m=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));assert.equal(m.manifest_version,3);assert.deepEqual(m.permissions,['storage']);assert.deepEqual(m.host_permissions,['https://*.booking.com/*']);
  const files=[m.background.service_worker,m.action.default_popup,...Object.values(m.icons),...m.content_scripts.flatMap(c=>c.js)];for(const f of files)assert.ok(fs.existsSync(path.join(root,f)),f);
  for(const [size,f] of Object.entries(m.icons)){const b=fs.readFileSync(path.join(root,f));assert.equal(b.subarray(1,4).toString(),'PNG');assert.equal(b.readUInt32BE(16),Number(size));assert.equal(b.readUInt32BE(20),Number(size));}
- assert.ok(m.content_scripts[0].matches.includes('https://*.booking.com/hotel/*'));
+ assert.deepEqual(m.content_scripts[0].matches,['https://*.booking.com/hotel/*']);
  const html=fs.readFileSync(path.join(root,m.action.default_popup),'utf8');for(const [,f] of html.matchAll(/(?:src|href)="([^"]+)"/g))assert.ok(fs.existsSync(path.join(root,'src/popup',f)));
+});
+
+test('Booking 美国区 "$2,477" 用页头 USD 补全币种（2026-11-02 真站）',()=>{
+  const H=require('../src/lib/price.js');const assert=require('node:assert/strict');
+  assert.deepEqual(H.resolveCurrency(H.parsePrice('$2,477'),[null,'USD']),{amount:2477,currency:'USD'});
+  assert.equal(H.resolveCurrency(H.parsePrice('$2,477'),['EUR']).currency,'UNKNOWN_DOLLAR');
+  assert.equal(H.resolveCurrency(H.parsePrice('¥1,580'),['CNY']).currency,'CNY');
+  assert.equal(H.resolveCurrency(H.parsePrice('€ 245'),['USD']).currency,'EUR');
+});
+
+test('Booking 去掉 URL 日期后，页面日期转 ISO；复查 URL 带回日期并去掉挑战参数',()=>{
+  const H=require('../src/lib/price.js');const assert=require('node:assert/strict');const now=new Date(2026,10,2);
+  assert.equal(H.displayDateToIso('Tue, Dec 8',now),'2026-12-08');
+  assert.equal(H.displayDateToIso('Thu, Jan 7',now),'2027-01-07');
+  assert.equal(H.displayDateToIso('12月8日周二',now),'2026-12-08');
+  assert.equal(H.displayDateToIso('8 Dec 2026',now),'2026-12-08');
+  assert.equal(H.displayDateToIso('Feb 30',now),'');
+  assert.equal(H.urlWithDates('https://www.booking.com/hotel/gb/x.html?lang=en-us&chal_t=1&force_referer=','2026-12-08','2026-12-10'),'https://www.booking.com/hotel/gb/x.html?lang=en-us&checkin=2026-12-08&checkout=2026-12-10');
 });

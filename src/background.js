@@ -1,6 +1,6 @@
 importScripts('lib/license.js','lib/quota.js','lib/price.js');
 const H=HotelWatch, quota=H.createQuotaStore(chrome.storage.local,H.verifyLicense);
-const allowed = url => {try {const u=new URL(url);return u.protocol==='https:' && ['booking.com','agoda.com'].some(h=>u.hostname===h||u.hostname.endsWith('.'+h));}catch{return false;}};
+const allowed = url => {try {const u=new URL(url);return u.protocol==='https:' && (u.hostname==='booking.com'||u.hostname.endsWith('.booking.com'));}catch{return false;}};
 async function tracks(){return (await chrome.storage.local.get('tracks')).tracks || [];}
 async function readTab(url) {
  if(!allowed(url))throw Error('链接不受支持');
@@ -16,8 +16,8 @@ async function handle(m,sender) {
   const s=m.snapshot;
   if(!sender.tab || !allowed(sender.tab.url) || !s || s.url!==sender.tab.url || !allowed(s.url) || !s.name || !s.price || !Number.isFinite(s.price.amount) || s.price.amount<=0 || !s.price.currency || !s.checkin || !s.checkout)throw Error('未读取到酒店、价格或日期，请确认页面信息后重试');
   if(!(await quota.consume()).recorded)throw Error(H.CTA);
-  const list=await tracks(),existing=list.find(x=>x.url===s.url);
-  const item={id:existing?.id||crypto.randomUUID(),name:s.name,url:s.url,checkin:s.checkin,checkout:s.checkout,recordedPrice:s.price.amount,currency:s.price.currency,lastCheckedAt:new Date().toISOString(),lastCheckedPrice:s.price.amount,lastCurrency:s.price.currency,result:'equal'};
+  const list=await tracks(),cleanUrl=H.urlWithDates(s.url,s.checkin,s.checkout),existing=list.find(x=>x.url===cleanUrl||x.url===s.url);
+  const item={id:existing?.id||crypto.randomUUID(),name:s.name,url:H.urlWithDates(s.url,s.checkin,s.checkout),checkin:s.checkin,checkout:s.checkout,recordedPrice:s.price.amount,currency:s.price.currency,lastCheckedAt:new Date().toISOString(),lastCheckedPrice:s.price.amount,lastCurrency:s.price.currency,result:'equal'};
   await chrome.storage.local.set({tracks:[...list.filter(x=>x.id!==item.id),item]});return {ok:true};
  }
  // Content scripts may only add the current page. Other commands belong to popup.
@@ -28,7 +28,7 @@ async function handle(m,sender) {
  if(m.type==='check') {
   const list=await tracks();if(!list.length)throw Error('请先加入追踪');
   if(!(await quota.consume()).recorded)throw Error(H.CTA);
-  for(const item of list){item.lastCheckedAt=new Date().toISOString();try {const s=await readTab(item.url);if(s.checkin!==item.checkin||s.checkout!==item.checkout)throw Error('入住/离店日期发生变化，请手动核对页面');item.lastCheckedPrice=s.price.amount;item.lastCurrency=s.price.currency;item.result=H.comparePrices({amount:item.recordedPrice,currency:item.currency},s.price);delete item.error;}catch(e){item.result='unavailable';item.error=e.message;}}
+  for(const item of list){item.lastCheckedAt=new Date().toISOString();try {const s=await readTab(H.urlWithDates(item.url,item.checkin,item.checkout));if(s.checkin!==item.checkin||s.checkout!==item.checkout)throw Error('入住/离店日期发生变化，请手动核对页面');item.lastCheckedPrice=s.price.amount;item.lastCurrency=s.price.currency;item.result=H.comparePrices({amount:item.recordedPrice,currency:item.currency},s.price);delete item.error;}catch(e){item.result='unavailable';item.error=e.message;}}
   await chrome.storage.local.set({tracks:list});return {ok:true};
  }
  throw Error('未知操作');
